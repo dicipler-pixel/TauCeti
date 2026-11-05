@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jeromie Beasley
+Authors: The Tau Ceti contributors
 -/
 module
 
@@ -11,15 +11,22 @@ public import Mathlib.Data.Fintype.Pi
 public import Mathlib.Data.List.GetD
 public import Mathlib.Tactic.Group
 public import Mathlib.Tactic.NormNum
+public import TauCeti.GroupTheory.Perm.MovedNorm
 
 /-!
 # `Sym(3)`-valued cochains on `K_k`: counts, exhaustion, and the witnesses for `k = 4, 5`
 
 The permutation coboundary constant of the complete complex is k/3 for 4 ≤ k ≤ 8
-(Jeromie Beasley, DOI 10.5281/zenodo.22090958): the machine-checked witnesses.
+(Jeromie Beasley, DOI 10.5281/zenodo.22090958, version DOI 10.5281/zenodo.23245792): the
+machine-checked witnesses.
+
+The `Sym3` files follow the Lean development of the paper in
+https://github.com/dicipler-pixel/coboundary-k3-lean at commit
+`34fac54a6d60eae744e7bc6a849d79c0c09409ad`.
 
 Conventions follow the paper (Section 1). Permutations of `{0,1,2}` act on points;
-the Hamming count `moved σ` is the number of points `σ` moves. A 1-cochain on the complete
+the Hamming count `moved σ` is the number of points `σ` moves, a kernel-computable form of
+`Equiv.Perm.movedNorm (Fin 3)` (`moved_eq_movedNorm`). A 1-cochain on the complete
 complex `K_k` assigns `α u v` to each edge `u < v`, with `α(v,u) = α(u,v)⁻¹`. Its triangle
 defect is `N = Σ_{u<v<w} moved(α(u,v) α(v,w) α(w,u))` and the cost of a gauge
 `β : Fin k → Sym(3)` is `Σ_{u<v} moved(β(u)⁻¹ α(u,v) β(v))`; `D` is the minimum cost over every
@@ -32,10 +39,12 @@ the paper's Proposition 1 (Chapman–Lubotzky's Proposition 3.2), is proved in `
 The gauge minimum is checked by exhausting every gauge with `β(0) = 1`; `gauge_lower` proves that
 this loses nothing, because right multiplication by a constant conjugates every edge term.
 
-The exhaustions for `k = 6, 7` and `k = 8` are in `Sym3.ExhaustionSixSeven` and
-`Sym3.ExhaustionEight`.
+The exhaustions for `k = 6`, `7` and `8` are in `Sym3.ExhaustionSix`, `Sym3.ExhaustionSeven`
+and `Sym3.ExhaustionEight`.
 -/
 
+-- The definitions of this file are evaluated by `decide +kernel` in the exhaustion files, so
+-- their bodies are exposed.
 @[expose] public section
 
 namespace TauCeti.CoboundaryExpansion.Sym3
@@ -57,6 +66,9 @@ def t12 : S3 := swap 1 2
 /-- The transposition `(2 1 0)` in the paper's one-line notation. -/
 def t02 : S3 := swap 0 2
 
+-- One-line notation lists the images of `0, 1, 2`: `c1 = (1 2 0)` sends `0 ↦ 1 ↦ 2 ↦ 0`,
+-- and `c2 = (2 0 1)` is its inverse, `0 ↦ 2 ↦ 1 ↦ 0`.
+
 /-- The 3-cycle `(1 2 0)` in the paper's one-line notation. -/
 def c1 : S3 := swap 0 1 * swap 1 2
 
@@ -68,14 +80,18 @@ def S3list : List S3 := [1, t01, t12, t02, c1, c2]
 
 theorem mem_S3list : ∀ σ : S3, σ ∈ S3list := by decide
 
-/-- The Hamming count is conjugation invariant (bi-invariance of the metric). -/
-theorem moved_conj : ∀ c x : S3, moved (c⁻¹ * x * c) = moved x := by
-  intro c x
-  have hc := mem_S3list c
-  have hx := mem_S3list x
-  simp only [S3list, List.mem_cons, List.not_mem_nil, or_false] at hc hx
-  rcases hc with rfl | rfl | rfl | rfl | rfl | rfl <;>
-    rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+/-- On `Sym(3)` the Hamming count is the size of the support. -/
+theorem moved_eq_card_support : ∀ σ : S3, moved σ = σ.support.card := by decide
+
+/-- The Hamming count is the moved-point norm `Equiv.Perm.movedNorm (Fin 3)`. -/
+theorem moved_eq_movedNorm (σ : S3) : (moved σ : ℝ) = Perm.movedNorm (Fin 3) σ := by
+  rw [Perm.movedNorm_apply, moved_eq_card_support]
+
+/-- The Hamming count is conjugation invariant (`Equiv.Perm.movedNorm_conj`). -/
+theorem moved_conj (c x : S3) : moved (c⁻¹ * x * c) = moved x := by
+  have h := Perm.movedNorm_conj c⁻¹ x
+  rw [inv_inv, ← moved_eq_movedNorm, ← moved_eq_movedNorm] at h
+  exact_mod_cast h
 
 /-! ## Cochains on the complete complex -/
 
@@ -117,7 +133,7 @@ def funs : (n : ℕ) → List (Fin n → S3)
   | 0 => [Fin.elim0]
   | n + 1 => S3list.flatMap fun a => (funs n).map (Fin.cons a)
 
-theorem mem_funs : ∀ (n : ℕ) (f : Fin n → S3), f ∈ funs n
+private theorem mem_funs : ∀ (n : ℕ) (f : Fin n → S3), f ∈ funs n
   | 0, f => by rw [funs, List.mem_singleton]; funext i; exact i.elim0
   | n + 1, f => by
     simp only [funs, List.mem_flatMap, List.mem_map]
@@ -156,12 +172,12 @@ def term (l : List S3) (e : Fin k × Fin k) : ℕ :=
 def pcost (l : List S3) : ℕ :=
   ((edges k).map fun e => if e.2.val < l.length then term α l e else 0).sum
 
-theorem mem_edges {e : Fin k × Fin k} (h : e ∈ edges k) : e.1 < e.2 := by
+private theorem mem_edges {e : Fin k × Fin k} (h : e ∈ edges k) : e.1 < e.2 := by
   simp only [edges, List.mem_flatMap, List.mem_map, List.mem_filter, decide_eq_true_eq] at h
   obtain ⟨u, _, v, ⟨_, huv⟩, rfl⟩ := h
   exact huv
 
-theorem sum_map_le {ι : Type*} (l : List ι) (f g : ι → ℕ) (h : ∀ i ∈ l, f i ≤ g i) :
+private theorem sum_map_le {ι : Type*} (l : List ι) (f g : ι → ℕ) (h : ∀ i ∈ l, f i ≤ g i) :
     (l.map f).sum ≤ (l.map g).sum := by
   induction l with
   | nil => simp
@@ -169,7 +185,7 @@ theorem sum_map_le {ι : Type*} (l : List ι) (f g : ι → ℕ) (h : ∀ i ∈ 
     simp only [List.map_cons, List.sum_cons]
     exact Nat.add_le_add (h a (by simp)) (ih fun i hi => h i (by simp [hi]))
 
-theorem pcost_mono (l ext : List S3) : pcost α l ≤ pcost α (l ++ ext) := by
+private theorem pcost_mono (l ext : List S3) : pcost α l ≤ pcost α (l ++ ext) := by
   apply sum_map_le
   intro e he
   have h12 := mem_edges he
@@ -187,7 +203,7 @@ def search (D : ℕ) : ℕ → List S3 → Bool
   | 0, l => decide (D ≤ pcost α l)
   | f + 1, l => decide (D ≤ pcost α l) || S3list.all fun a => search D f (l ++ [a])
 
-theorem search_sound (D : ℕ) : ∀ (fuel : ℕ) (l : List S3), search α D fuel l = true →
+private theorem search_sound (D : ℕ) : ∀ (fuel : ℕ) (l : List S3), search α D fuel l = true →
     ∀ ext : List S3, ext.length = fuel → D ≤ pcost α (l ++ ext)
   | 0, l, h, ext, hl => by
     rw [List.length_eq_zero_iff.mp hl, List.append_nil]
@@ -203,7 +219,7 @@ theorem search_sound (D : ℕ) : ∀ (fuel : ℕ) (l : List S3), search α D fue
       have := search_sound D f (l ++ [a]) (h a (mem_S3list a)) ext' (by simpa using hl)
       simpa using this
 
-theorem search_step (D f : ℕ) (l : List S3)
+private theorem search_step (D f : ℕ) (l : List S3)
     (h : ∀ a ∈ S3list, search α D f (l ++ [a]) = true) : search α D (f + 1) l = true := by
   simp only [search, Bool.or_eq_true, List.all_eq_true]
   exact Or.inr h
@@ -218,7 +234,7 @@ theorem search_split (D f : ℕ) (l : List S3)
   simp only [S3list, List.mem_cons, List.not_mem_nil, or_false] at ha
   rcases ha with rfl | rfl | rfl | rfl | rfl | rfl <;> assumption
 
-theorem pcost_ofFn {m : ℕ} (α : Fin (m + 1) → Fin (m + 1) → S3) (β : Fin (m + 1) → S3) :
+private theorem pcost_ofFn {m : ℕ} (α : Fin (m + 1) → Fin (m + 1) → S3) (β : Fin (m + 1) → S3) :
     pcost α (List.ofFn β) = cost α β := by
   have hg : ∀ i : Fin (m + 1), (List.ofFn β).getD i 1 = β i := fun i => by
     rw [List.getD_eq_getElem _ _ (by rw [List.length_ofFn]; exact i.isLt), List.getElem_ofFn]

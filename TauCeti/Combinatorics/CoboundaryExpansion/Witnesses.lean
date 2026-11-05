@@ -1,12 +1,13 @@
 /-
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jeromie Beasley, Grok Bot
+Authors: The Tau Ceti contributors
 -/
 module
 
-public import TauCeti.Combinatorics.CoboundaryExpansion.Sym3.Bridge
+public import TauCeti.Combinatorics.CoboundaryExpansion.Bridge
 public import TauCeti.Combinatorics.CoboundaryExpansion.Sym3.Replication
+public import TauCeti.Combinatorics.CoboundaryExpansion.Sym3.SmallCases
 
 /-!
 # Layer 6: the complete complex with permutation coefficients
@@ -23,12 +24,16 @@ Appendix A, Corollary 7) through `Bridge`. Nothing here uses Kozlov's staircases
 * 6.3: `witness5` … `witness8` with their `_defect`, `_gaugeDist`, and `h1_complete_fin_five`
   … `h1_complete_fin_eight`.
 
-Drafted with AI assistance (Grok Bot).
+Route for 6.1: README 6.1 obtains `4/3` from the general star bound 4.2 (Beasley,
+Proposition 5). Here 4.2 is not formalized for a general norm; the lower bound `4/3 ≤ h1` is the
+`Sym(3)` star bound `Sym3.k_div_three_le_h1` of the `Fin k` model, the upper bound is the seed
+(`defect = 8`, every gauge costs at least `6` by exhaustion of the gauges with `β 0 = 1`), and
+both are transported to `Defs` by `Bridge.h1_eq`. The same route gives 6.2 and 6.3.
 -/
 
-@[expose] public section
+public section
 
-open Finset Equiv
+open Finset Equiv Equiv.Perm
 
 namespace TauCeti.CoboundaryExpansion
 
@@ -38,7 +43,7 @@ open Bridge
 
 /-- The seed on `complete (Fin 4)`: the identity on the three edges at `0`, and the three
 transpositions `(0 2 1)`, `(1 0 2)`, `(2 1 0)` on `{1,2}`, `{1,3}`, `{2,3}`. -/
-def seed : Cochain (complete (Fin 4)) (Perm (Fin 3)) := ofFin (OrderIso.refl _) Sym3.w4
+@[expose] def seed : Cochain (complete (Fin 4)) (Perm (Fin 3)) := ofFin (OrderIso.refl _) Sym3.w4
 
 /-- The seed's values on the edges `u < v`, as described in README 6.1. -/
 theorem seed_values :
@@ -79,13 +84,17 @@ theorem h1_complete_movedNorm_fin_three_of_four_dvd {V : Type*} [Fintype V] [Lin
 /-! ## 6.3 Explicit witnesses for `k = 5, …, 8` -/
 
 /-- The README 6.3 witness at `k = 5`. -/
-def witness5 : Cochain (complete (Fin 5)) (Perm (Fin 3)) := ofFin (OrderIso.refl _) Sym3.w5
+@[expose] def witness5 : Cochain (complete (Fin 5)) (Perm (Fin 3)) :=
+  ofFin (OrderIso.refl _) Sym3.w5
 /-- The README 6.3 witness at `k = 6`. -/
-def witness6 : Cochain (complete (Fin 6)) (Perm (Fin 3)) := ofFin (OrderIso.refl _) Sym3.w6
+@[expose] def witness6 : Cochain (complete (Fin 6)) (Perm (Fin 3)) :=
+  ofFin (OrderIso.refl _) Sym3.w6
 /-- The README 6.3 witness at `k = 7`. -/
-def witness7 : Cochain (complete (Fin 7)) (Perm (Fin 3)) := ofFin (OrderIso.refl _) Sym3.w7
+@[expose] def witness7 : Cochain (complete (Fin 7)) (Perm (Fin 3)) :=
+  ofFin (OrderIso.refl _) Sym3.w7
 /-- The README 6.3 witness at `k = 8`. -/
-def witness8 : Cochain (complete (Fin 8)) (Perm (Fin 3)) := ofFin (OrderIso.refl _) Sym3.w8
+@[expose] def witness8 : Cochain (complete (Fin 8)) (Perm (Fin 3)) :=
+  ofFin (OrderIso.refl _) Sym3.w8
 
 theorem witness5_defect : witness5.defect (movedNorm (Fin 3)) = 10 := by
   rw [witness5, defect_ofFin, Sym3.witness_k5.1]; norm_num
@@ -107,7 +116,7 @@ theorem witness8_gaugeDist : witness8.gaugeDist (movedNorm (Fin 3)) = 27 := by
 /-- **README 6.3, `k = 5`.** -/
 theorem h1_complete_fin_five : h1 (complete (Fin 5)) (movedNorm (Fin 3)) = 5 / 3 := by
   rw [h1_eq (OrderIso.refl _), Sym3.h1_eq_k5]
-/-- **README 6.3, `k = 6`.** -/
+/-- **README 6.3, `k = 6`.** Stated as `6 / 3`, the README's `k/3`, which is `2`. -/
 theorem h1_complete_fin_six : h1 (complete (Fin 6)) (movedNorm (Fin 3)) = 6 / 3 := by
   rw [h1_eq (OrderIso.refl _), Sym3.h1_eq_k6]
 /-- **README 6.3, `k = 7`.** -/

@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2026 The Tau Ceti contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jeromie Beasley, Grok Bot
+Authors: The Tau Ceti contributors
 -/
 module
 
@@ -10,13 +10,13 @@ public import TauCeti.Combinatorics.CoboundaryExpansion.Sym3.Constant
 public import Mathlib.Data.Finset.Sort
 
 /-!
-# Bridge: `Cochain`, `movedNorm`, `h1` and the `Fin k` model of `Sym3`
+# Bridge between `Defs` and the `Fin k` model of `Sym3`
 
 `Sym3` works with bare functions `Fin k → Fin k → Sym(3)` read on `u < v`, natural-number
 moved-point counts and minima. This file transports the definitions of `Defs`, unchanged, along an
 order isomorphism `e : Fin k ≃o V`:
 
-* `movedNorm_eq_moved`: `movedNorm (Fin 3) σ = moved σ`;
+* `Sym3.moved_eq_movedNorm`: `moved σ = movedNorm (Fin 3) σ`;
 * `defect_eq`, `cost_eq`, `gaugeDist_eq`: defect, cost and gauge distance of a cochain
   are those of its pullback `toFin e α`;
 * `defect_ofFin`, `gaugeDist_ofFin`: a bare function gives a cochain `ofFin e f` with the
@@ -25,28 +25,17 @@ order isomorphism `e : Fin k ≃o V`:
 
 An order isomorphism preserves the orientation `u < v < w` used by every sum, so no
 orientation-independence lemma (roadmap 2.3) is needed.
-
-Drafted with AI assistance (Grok Bot).
 -/
 
-@[expose] public section
+public section
 
-open Finset Equiv
+open Finset Equiv Equiv.Perm
 
 namespace TauCeti.CoboundaryExpansion.Bridge
 
-/-- On `Sym(3)` the support has as many points as `moved` counts. -/
-theorem card_support_eq_moved : ∀ σ : Perm (Fin 3), σ.support.card = Sym3.moved σ := by
-  decide
-
-theorem movedNorm_eq_moved (σ : Perm (Fin 3)) :
-    movedNorm (Fin 3) σ = (Sym3.moved σ : ℝ) := by
-  change ((σ.support.card : ℕ) : ℝ) = _
-  rw [card_support_eq_moved]
-
 variable {V : Type*} [Fintype V] [LinearOrder V]
 
-theorem pair_mem_edges {u v : V} (h : u ≠ v) : ({u, v} : Finset V) ∈ (complete V).edges :=
+private theorem pair_mem_edges {u v : V} (h : u ≠ v) : ({u, v} : Finset V) ∈ (complete V).edges :=
   Finset.mem_powersetCard.mpr ⟨Finset.subset_univ _, Finset.card_pair h⟩
 
 theorem ne_of_pair_mem_edges {u v : V} (h : ({u, v} : Finset V) ∈ (complete V).edges) : u ≠ v := by
@@ -54,7 +43,7 @@ theorem ne_of_pair_mem_edges {u v : V} (h : ({u, v} : Finset V) ∈ (complete V)
   have := (Finset.mem_powersetCard.mp h).2
   simp at this
 
-theorem triple_mem_triangles {u v w : V} (h1 : u < v) (h2 : v < w) :
+private theorem triple_mem_triangles {u v w : V} (h1 : u < v) (h2 : v < w) :
     ({u, v, w} : Finset V) ∈ (complete V).triangles :=
   Finset.mem_powersetCard.mpr
     ⟨Finset.subset_univ _, Finset.card_eq_three.mpr ⟨u, v, w, h1.ne, (h1.trans h2).ne, h2.ne, rfl⟩⟩
@@ -62,12 +51,12 @@ theorem triple_mem_triangles {u v w : V} (h1 : u < v) (h2 : v < w) :
 variable {k : ℕ}
 
 /-- The pullback of a cochain to `Fin k`. -/
-def toFin (e : Fin k ≃o V) (α : Cochain (complete V) (Perm (Fin 3))) :
+@[expose] def toFin (e : Fin k ≃o V) (α : Cochain (complete V) (Perm (Fin 3))) :
     Fin k → Fin k → Sym3.S3 :=
   fun i j => α.toFun (e i) (e j)
 
 /-- A bare function on `Fin k`, read on `u < v` and inverted on `u > v`, as a roadmap cochain. -/
-def ofFin (e : Fin k ≃o V) (f : Fin k → Fin k → Sym3.S3) :
+@[expose] def ofFin (e : Fin k ≃o V) (f : Fin k → Fin k → Sym3.S3) :
     Cochain (complete V) (Perm (Fin 3)) where
   toFun u v := Sym3.val f (e.symm u) (e.symm v)
   inv_symm _ _ h :=
@@ -96,7 +85,7 @@ theorem defect_eq (e : Fin k ≃o V) (α : Cochain (complete V) (Perm (Fin 3))) 
   split_ifs with h
   · obtain ⟨huv, hvw⟩ := h
     have huw : u < w := huv.trans hvw
-    rw [movedNorm_eq_moved, α.inv_symm (e u) (e w) (pair_mem_edges (e.injective.ne huw.ne))]
+    rw [← Sym3.moved_eq_movedNorm, α.inv_symm (e u) (e w) (pair_mem_edges (e.injective.ne huw.ne))]
     simp [Sym3.hol, Sym3.val, toFin, huv, hvw, not_lt.mpr huw.le]
   · rfl
 
@@ -118,10 +107,10 @@ theorem cost_eq (e : Fin k ≃o V) (α : Cochain (complete V) (Perm (Fin 3))) (�
   refine Finset.sum_congr rfl fun v _ => ?_
   simp only [OrderIso.coe_toEquiv, e.lt_iff_lt]
   split_ifs with h
-  · rw [movedNorm_eq_moved]; rfl
+  · rw [← Sym3.moved_eq_movedNorm]; rfl
   · rfl
 
-theorem cost_nonneg (α : Cochain (complete V) (Perm (Fin 3))) (β : V → Perm (Fin 3)) :
+private theorem cost_nonneg (α : Cochain (complete V) (Perm (Fin 3))) (β : V → Perm (Fin 3)) :
     0 ≤ α.cost (movedNorm (Fin 3)) β :=
   Finset.sum_nonneg fun _ _ => apply_nonneg _ _
 
@@ -141,7 +130,7 @@ theorem gaugeDist_eq (e : Fin k ≃o V) (α : Cochain (complete V) (Perm (Fin 3)
     exact_mod_cast Sym3.gaugeDist_le _ _
 
 /-- Reading a bare function through `val` changes neither its defect nor its gauge distance. -/
-theorem defect_val (f : Fin k → Fin k → Sym3.S3) :
+private theorem defect_val (f : Fin k → Fin k → Sym3.S3) :
     Sym3.defect (fun i j => Sym3.val f i j) = Sym3.defect f := by
   rw [Sym3.defect_eq_sum, Sym3.defect_eq_sum]
   refine Finset.sum_congr rfl fun u _ => Finset.sum_congr rfl fun v _ =>
@@ -160,7 +149,7 @@ theorem cost_val (f : Fin k → Fin k → Sym3.S3) (β : Fin k → Sym3.S3) :
   · simp [Sym3.val, h]
   · rfl
 
-theorem gaugeDist_val (f : Fin k → Fin k → Sym3.S3) :
+private theorem gaugeDist_val (f : Fin k → Fin k → Sym3.S3) :
     Sym3.gaugeDist (fun i j => Sym3.val f i j) = Sym3.gaugeDist f := by
   unfold Sym3.gaugeDist
   simp only [cost_val]
